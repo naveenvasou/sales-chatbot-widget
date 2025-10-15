@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 
 class FlowState(str, Enum):
-    """All possible states in the chatbot flow"""
-    # Common states
+    """All possible states"""
+    # Common
     GREETING = "greeting"
     CATEGORY_SELECTION = "category_selection"
     LEAD_CAPTURE = "lead_capture"
@@ -14,42 +14,31 @@ class FlowState(str, Enum):
     BROCHURE_START = "brochure_start"
     BROCHURE_PREFERENCES = "brochure_preferences"
     BROCHURE_PREFERENCES_COLLECTED = "brochure_preferences_collected"
-    BROCHURE_CONFIRMATION = "brochure_confirmation"
     BROCHURE_COMPLETE = "brochure_complete"
     
-    # Booking flow
+    # Call schedule flow
     BOOKING_START = "booking_start"
-    BOOKING_PROPERTY_INTEREST = "booking_property_interest"
-    BOOKING_DATE_PREFERENCE = "booking_date_preference"
-    BOOKING_TIME_PREFERENCE = "booking_time_preference"
-    BOOKING_SPECIAL_REQUESTS = "booking_special_requests"
+    BOOKING_PHONE_CONFIRM = "booking_phone_confirm"
+    BOOKING_PREFERENCE = "booking_preference"
+    BOOKING_PREFERENCES_COLLECTED = "booking_preferences_collected"
+    BOOKING_CALL_TIME = "booking_call_time"
     BOOKING_CONFIRMATION = "booking_confirmation"
     BOOKING_COMPLETE = "booking_complete"
     
-    # Availability flow
-    AVAILABILITY_START = "availability_start"
-    AVAILABILITY_LOCATION = "availability_location"
-    AVAILABILITY_BUDGET = "availability_budget"
-    AVAILABILITY_PROPERTY_TYPE = "availability_property_type"
-    AVAILABILITY_TIMELINE = "availability_timeline"
-    AVAILABILITY_SEARCH = "availability_search"
-    AVAILABILITY_RESULTS = "availability_results"
-    AVAILABILITY_COMPLETE = "availability_complete"
+    # Explore properties flow
+    EXPLORE_START = "explore_start"
+    EXPLORE_PROPERTY_TYPE = "explore_property_type"
+    EXPLORE_SHOW_MORE = "explore_show_more"
+    EXPLORE_FILTERED_RESULTS = "explore_filtered_results"
+    EXPLORE_PROPERTY_ACTION = "explore_property_action"
     
-    # FAQ flow
-    FAQ_START = "faq_start"
-    FAQ_CATEGORY_SELECT = "faq_category_select"
-    FAQ_HANDLE = "faq_handle"
-    FAQ_FOLLOWUP = "faq_followup"
-    FAQ_COMPLETE = "faq_complete"
+    # Ask AI flow
+    ASK_START = "ask_start"
+    ASK_QUERY_RECEIVED = "ask_query_received"
+    ASK_RESPONSE = "ask_response"
+    ASK_FOLLOWUP = "ask_followup"
     
-    # Other queries flow
-    OTHER_START = "other_start"
-    OTHER_INPUT = "other_input"
-    OTHER_HANDLED = "other_handled"
-    OTHER_COMPLETE = "other_complete"
-    
-    # Terminal states
+    # Terminal
     HANDOFF = "handoff"
     ENDED = "ended"
 
@@ -103,8 +92,7 @@ class StateMachine:
                                     {"value": "under_50", "label": "Under ₹50 Lakhs"},
                                     {"value": "50_100", "label": "₹50L - ₹1 Crore"},
                                     {"value": "100_200", "label": "₹1 Cr - ₹2 Crore"},
-                                    {"value": "200_plus", "label": "₹2 Crore+"},
-                                    {"value": "flexible", "label": "Flexible"}
+                                    {"value": "200_plus", "label": "₹2 Crore+"}
                                 ],
                                 "required": True
                             },
@@ -112,7 +100,7 @@ class StateMachine:
                                 "name": "location",
                                 "label": "📍 Preferred Location",
                                 "type": "multiselect_chips",
-                                "options": ["Mumbai", "Chennai", "Bangalore", "Pune", "Hyderabad", "Delhi NCR"],
+                                "options": ["OMR", "ECR", "Velachery", "Anna Nagar", "T Nagar"],
                                 "required": True
                             },
                             {
@@ -120,9 +108,9 @@ class StateMachine:
                                 "label": "🏠 Property Type",
                                 "type": "buttons",
                                 "options": [
-                                    {"value": "apartment", "label": "🏢 Apartment"},
-                                    {"value": "villa", "label": "🏡 Villa"},
-                                    {"value": "plot", "label": "📐 Plot"},
+                                    {"value": "apartment", "label": "🏢 Apartments"},
+                                    {"value": "villa", "label": "🏡 Villas"},
+                                    {"value": "plot", "label": "📐 Plots"},
                                     {"value": "commercial", "label": "🏪 Commercial"}
                                 ],
                                 "required": True
@@ -136,133 +124,136 @@ class StateMachine:
             ),
             
             FlowState.BROCHURE_PREFERENCES_COLLECTED: StateResponse(
-                message="Excellent! Based on your preferences:\n\n{preferences_summary}\n\nYou'll receive:\n✅ General property brochure\n✅ Personalized recommendations matching your criteria\n\nBoth will be sent to your email within the next few minutes!",
+                message="Great! Based on your preferences, we'll send you tailored recommendations.",
                 ui_component=None,
-                next_state=FlowState.BROCHURE_CONFIRMATION,
-                show_menu_button=True
-            ),
-            
-            FlowState.BROCHURE_CONFIRMATION: StateResponse(
-                message="Is there anything specific you'd like to know about our properties?",
-                ui_component=UIComponent(
-                    type="buttons",
-                    data={
-                        "options": [
-                            {"value": "amenities", "label": "🏊 Amenities"},
-                            {"value": "payment", "label": "💳 Payment Plans"},
-                            {"value": "possession", "label": "🔑 Possession Timeline"},
-                            {"value": "nothing", "label": "Nothing, I'm good!"}
-                        ]
-                    }
-                ),
                 next_state=FlowState.BROCHURE_COMPLETE,
                 show_menu_button=True
             ),
             
             FlowState.BROCHURE_COMPLETE: StateResponse(
-                message="Perfect! Our team will reach out to you soon with detailed information.\n\nThank you for your interest! 🙏",
+                message="Would you like to schedule a quick call with us?",
                 ui_component=UIComponent(
                     type="buttons",
                     data={
                         "options": [
-                            {"value": "menu", "label": "🏠 Back to Main Menu"},
-                            {"value": "end", "label": "👋 End Chat"}
+                            {"value": "book_call", "label": "📞 Book a Call"},
+                            {"value": "maybe_later", "label": "Maybe Later"}
                         ]
                     }
                 ),
                 next_state=FlowState.HANDOFF,
-                show_menu_button=False
+                show_menu_button=True
             ),
             
-            # ====== BOOKING FLOW ======
+            # ====== CALL SCHEDULE FLOW ======
             FlowState.BOOKING_START: StateResponse(
-                message="✅ Great! Let's schedule your site visit! 📅\n\nAre you interested in visiting a specific property?",
+                message="✅ Let's schedule your call with our property expert!\n\nWould you like to use the same contact number you provided earlier?",
                 ui_component=UIComponent(
                     type="buttons",
                     data={
                         "options": [
-                            {"value": "specific", "label": "Yes, specific property"},
-                            {"value": "any", "label": "Show me options"},
-                            {"value": "not_sure", "label": "Not sure yet"}
+                            {"value": "yes", "label": "Yes 👍"},
+                            {"value": "different", "label": "Use a different number ☎️"}
                         ]
                     }
                 ),
-                next_state=FlowState.BOOKING_PROPERTY_INTEREST,
+                next_state=FlowState.BOOKING_PHONE_CONFIRM,
                 show_menu_button=True
             ),
             
-            FlowState.BOOKING_PROPERTY_INTEREST: StateResponse(
-                message="When would you prefer to visit?",
-                ui_component=UIComponent(
-                    type="buttons",
-                    data={
-                        "options": [
-                            {"value": "this_week", "label": "📅 This Week"},
-                            {"value": "next_week", "label": "📅 Next Week"},
-                            {"value": "flexible", "label": "🤷 Flexible"}
-                        ]
-                    }
-                ),
-                next_state=FlowState.BOOKING_DATE_PREFERENCE,
-                show_menu_button=True
-            ),
-            
-            FlowState.BOOKING_DATE_PREFERENCE: StateResponse(
-                message="What time works best for you?",
-                ui_component=UIComponent(
-                    type="buttons",
-                    data={
-                        "options": [
-                            {"value": "morning", "label": "🌅 Morning (9 AM - 12 PM)"},
-                            {"value": "afternoon", "label": "☀️ Afternoon (12 PM - 4 PM)"},
-                            {"value": "evening", "label": "🌆 Evening (4 PM - 7 PM)"}
-                        ]
-                    }
-                ),
-                next_state=FlowState.BOOKING_TIME_PREFERENCE,
-                show_menu_button=True
-            ),
-            
-            FlowState.BOOKING_TIME_PREFERENCE: StateResponse(
-                message="Any special requests or requirements for the visit? (Optional)",
-                ui_component=UIComponent(
-                    type="text_input",
-                    data={
-                        "placeholder": "E.g., Need wheelchair access, want to see specific floor plans...",
-                        "optional": True,
-                        "skip_label": "No special requests"
-                    }
-                ),
-                next_state=FlowState.BOOKING_SPECIAL_REQUESTS,
-                show_menu_button=True
-            ),
-            
-            FlowState.BOOKING_SPECIAL_REQUESTS: StateResponse(
-                message="✅ Perfect! Your site visit has been scheduled!\n\n📋 Summary:\n{booking_summary}\n\nOur agent will call you at {phone} to confirm the exact date and time.\n\nLooking forward to showing you our properties! 🏡",
+            FlowState.BOOKING_PHONE_CONFIRM: StateResponse(
+                message="",  # Will be dynamic based on phone choice
                 ui_component=None,
+                next_state=FlowState.BOOKING_PREFERENCE,
+                show_menu_button=True
+            ),
+            
+            FlowState.BOOKING_PREFERENCE: StateResponse(
+                message="Please share your preferences:",
+                ui_component=UIComponent(
+                    type="preference_form",
+                    data={
+                        "fields": [
+                            {
+                                "name": "budget",
+                                "label": "💰 Budget Range",
+                                "type": "dropdown",
+                                "options": [
+                                    {"value": "under_50", "label": "Under ₹50 Lakhs"},
+                                    {"value": "50_100", "label": "₹50L - ₹1 Crore"},
+                                    {"value": "100_200", "label": "₹1 Cr - ₹2 Crore"},
+                                    {"value": "200_plus", "label": "₹2 Crore+"}
+                                ],
+                                "required": True
+                            },
+                            {
+                                "name": "location",
+                                "label": "📍 Preferred Location",
+                                "type": "multiselect_chips",
+                                "options": ["OMR", "ECR", "Velachery", "Anna Nagar", "T Nagar"],
+                                "required": True
+                            },
+                            {
+                                "name": "property_type",
+                                "label": "🏠 Property Type",
+                                "type": "buttons",
+                                "options": [
+                                    {"value": "apartment", "label": "🏢 Apartments"},
+                                    {"value": "villa", "label": "🏡 Villas"},
+                                    {"value": "plot", "label": "📐 Plots"},
+                                    {"value": "commercial", "label": "🏪 Commercial"}
+                                ],
+                                "required": True
+                            }
+                        ],
+                        "submit_label": "Continue"
+                    }
+                ),
+                next_state=FlowState.BOOKING_PREFERENCES_COLLECTED,
+                show_menu_button=True
+            ),
+            
+            FlowState.BOOKING_PREFERENCES_COLLECTED: StateResponse(
+                message="Great! I've noted your preferences so our expert can be ready with suitable options. ✅",
+                ui_component=None,
+                next_state=FlowState.BOOKING_CALL_TIME,
+                show_menu_button=True
+            ),
+            
+            FlowState.BOOKING_CALL_TIME: StateResponse(
+                message="Which time would you prefer for the call?",
+                ui_component=UIComponent(
+                    type="buttons",
+                    data={
+                        "options": [
+                            {"value": "morning", "label": "☀️ Morning (9 AM – 12 PM)"},
+                            {"value": "afternoon", "label": "🌤️ Afternoon (12 PM – 4 PM)"},
+                            {"value": "evening", "label": "🌇 Evening (4 PM – 8 PM)"}
+                        ]
+                    }
+                ),
                 next_state=FlowState.BOOKING_CONFIRMATION,
                 show_menu_button=True
             ),
             
             FlowState.BOOKING_CONFIRMATION: StateResponse(
-                message="Would you like to do anything else?",
+                message="✅ All set! Your appointment has been scheduled.\n\nOur property expert will call you at {phone} during the {time_slot}.",
+                ui_component=None,
+                next_state=FlowState.BOOKING_COMPLETE,
+                show_menu_button=True
+            ),
+            
+            FlowState.BOOKING_COMPLETE: StateResponse(
+                message="Is there anything else I can help you with?",
                 ui_component=UIComponent(
                     type="buttons",
                     data={
                         "options": [
-                            {"value": "brochure", "label": "📋 Get Brochure"},
-                            {"value": "menu", "label": "🏠 Main Menu"},
-                            {"value": "end", "label": "👋 End Chat"}
+                            {"value": "ask_question", "label": "❓ Ask a Question"},
+                            {"value": "menu", "label": "🏠 Back to Menu"}
                         ]
                     }
                 ),
-                next_state=FlowState.BOOKING_COMPLETE,
-                show_menu_button=False
-            ),
-            
-            FlowState.BOOKING_COMPLETE: StateResponse(
-                message="Thank you! We'll be in touch soon! 🙏",
-                ui_component=None,
                 next_state=FlowState.HANDOFF,
                 show_menu_button=False
             ),

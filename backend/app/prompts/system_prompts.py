@@ -19,24 +19,19 @@ CATEGORIES = {
         "action": "BROCHURE"
     },
     "booking": {
-        "label": "Book an Appointment",
-        "emoji": "📅",
+        "label": "Schedule a Call",
+        "emoji": "📞",
         "action": "BOOKING"
     },
-    "availability": {
-        "label": "Check Availability / Pricing",
-        "emoji": "💰",
-        "action": "AVAILABILITY"
+    "explore": {
+        "label": "Explore Properties",
+        "emoji": "🏡",
+        "action": "EXPLORE"
     },
     "question": {
-        "label": "Ask a Question / Talk to Agent",
+        "label": "Ask a Question",
         "emoji": "💬",
-        "action": "FAQ"
-    },
-    "other": {
-        "label": "Other Queries",
-        "emoji": "❓",
-        "action": "FAQ"
+        "action": "ASK"
     }
 }
 

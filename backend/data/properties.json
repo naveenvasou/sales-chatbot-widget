@@ -1,0 +1,26 @@
+[
+  {
+    "id": "prop_001",
+    "type": "apartment",
+    "name": "Sunshine Residency",
+    "location": "OMR, Chennai",
+    "price": "50L - 1Cr",
+    "bedrooms": "2BHK, 3BHK",
+    "image_url": "https://example.com/image.jpg",
+    "description": "Luxury apartments with modern amenities...",
+    "amenities": ["pool", "gym", "parking"],
+    "possession": "Ready to move"
+  },
+  {
+    "id": "prop_002",
+    "type": "villa",
+    "name": "Green Valley Villas",
+    "location": "ECR, Chennai",
+    "price": "1.5Cr - 3Cr",
+    "bedrooms": "3BHK, 4BHK",
+    "image_url": "https://example.com/villa.jpg",
+    "description": "Spacious villas near the beach...",
+    "amenities": ["garden", "security", "clubhouse"],
+    "possession": "Under construction"
+  }
+]

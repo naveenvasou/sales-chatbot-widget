@@ -11,6 +11,7 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       }
-    }
+    },
+    allowedHosts:["unsignificantly-logarithmic-deetta.ngrok-free.dev"],
   }
 })
