@@ -14,9 +14,8 @@ class FlowManager:
         category_to_state = {
             "brochure": FlowState.BROCHURE_START,
             "booking": FlowState.BOOKING_START,
-            "availability": FlowState.AVAILABILITY_START,
-            "question": FlowState.FAQ_START,
-            "other": FlowState.OTHER_START
+            "explore": FlowState.EXPLORE_START,
+            "question": FlowState.ASK_START
         }
         
         start_state = category_to_state.get(category, FlowState.FAQ_START)
@@ -92,13 +91,22 @@ class FlowManager:
     def _process_user_input(self, state: FlowState, user_input: Any) -> Dict[str, Any]:
         """Process and structure user input based on state"""
         
-        # This will store structured data from user inputs
         processed = {}
         
         if isinstance(user_input, dict):
             processed.update(user_input)
         elif isinstance(user_input, str):
             processed["user_response"] = user_input
+            
+            # Handle property type selection in Explore flow
+            if state == FlowState.EXPLORE_START:
+                processed["property_type"] = user_input
+                processed["property_type_label"] = {
+                    "apartment": "Apartments",
+                    "villa": "Villas", 
+                    "plot": "Residential Plots",
+                    "commercial": "Commercial Spaces"
+                }.get(user_input, "Properties")
         
         return processed
     

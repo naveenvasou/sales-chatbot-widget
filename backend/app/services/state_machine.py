@@ -258,183 +258,142 @@ class StateMachine:
                 show_menu_button=False
             ),
             
-            # ====== AVAILABILITY FLOW ======
-            FlowState.AVAILABILITY_START: StateResponse(
-                message="Let's find the perfect property for you! 🔍\n\nWhere are you looking to buy?",
-                ui_component=UIComponent(
-                    type="multiselect_chips",
-                    data={
-                        "label": "📍 Select Location(s)",
-                        "options": ["Mumbai", "Chennai", "Bangalore", "Pune", "Hyderabad", "Delhi NCR", "Other"],
-                        "allow_multiple": True
-                    }
-                ),
-                next_state=FlowState.AVAILABILITY_LOCATION,
-                show_menu_button=True
-            ),
-            
-            FlowState.AVAILABILITY_LOCATION: StateResponse(
-                message="What's your budget range?",
-                ui_component=UIComponent(
-                    type="dropdown",
-                    data={
-                        "label": "💰 Budget Range",
-                        "options": [
-                            {"value": "under_50", "label": "Under ₹50 Lakhs"},
-                            {"value": "50_100", "label": "₹50L - ₹1 Crore"},
-                            {"value": "100_200", "label": "₹1 Cr - ₹2 Crore"},
-                            {"value": "200_plus", "label": "₹2 Crore+"}
-                        ]
-                    }
-                ),
-                next_state=FlowState.AVAILABILITY_BUDGET,
-                show_menu_button=True
-            ),
-            
-            FlowState.AVAILABILITY_BUDGET: StateResponse(
-                message="What type of property are you interested in?",
+            # ====== EXPLORE PROPERTIES FLOW ======
+            FlowState.EXPLORE_START: StateResponse(
+                message="🏡 Let's find your ideal property!\n\nPlease choose the type of property you're interested in:",
                 ui_component=UIComponent(
                     type="buttons",
                     data={
                         "options": [
-                            {"value": "apartment", "label": "🏢 Apartment"},
-                            {"value": "villa", "label": "🏡 Villa"},
-                            {"value": "plot", "label": "📐 Plot"},
-                            {"value": "commercial", "label": "🏪 Commercial"}
+                            {"value": "apartment", "label": "🏢 Apartments"},
+                            {"value": "villa", "label": "🏡 Villas"},
+                            {"value": "plot", "label": "📐 Residential Plots"},
+                            {"value": "commercial", "label": "🏪 Commercial Spaces"}
                         ]
                     }
                 ),
-                next_state=FlowState.AVAILABILITY_PROPERTY_TYPE,
+                next_state=FlowState.EXPLORE_PROPERTY_TYPE,
                 show_menu_button=True
             ),
-            
-            FlowState.AVAILABILITY_PROPERTY_TYPE: StateResponse(
-                message="When are you planning to make a decision?",
+            FlowState.EXPLORE_PROPERTY_TYPE: StateResponse(
+            message="Here are some available {property_type_label} in Chennai:",
+            ui_component=UIComponent(
+                type="property_cards",
+                data={
+                    "property_type": "{property_type}",
+                    "limit": 6
+                }
+            ),
+            next_state=FlowState.EXPLORE_SHOW_MORE,
+            show_menu_button=True
+            ),
+            FlowState.EXPLORE_SHOW_MORE: StateResponse(
+                message="Want to see more properties? Let me know your preferences to narrow it down:",
+                ui_component=UIComponent(
+                    type="preference_form",
+                    data={
+                        "fields": [
+                            {
+                                "name": "budget",
+                                "label": "💰 Budget Range",
+                                "type": "dropdown",
+                                "options": [
+                                    {"value": "under_50", "label": "Under ₹50 Lakhs"},
+                                    {"value": "50_100", "label": "₹50L - ₹1 Crore"},
+                                    {"value": "100_200", "label": "₹1 Cr - ₹2 Crore"},
+                                    {"value": "200_plus", "label": "₹2 Crore+"}
+                                ],
+                                "required": False
+                            },
+                            {
+                                "name": "location",
+                                "label": "📍 Preferred Location",
+                                "type": "multiselect_chips",
+                                "options": ["OMR", "ECR", "Velachery", "Anna Nagar", "T Nagar"],
+                                "required": False
+                            }
+                        ],
+                        "submit_label": "Show Matching Properties"
+                    }
+                ),
+                next_state=FlowState.EXPLORE_FILTERED_RESULTS,
+                show_menu_button=True
+            ),
+
+            FlowState.EXPLORE_FILTERED_RESULTS: StateResponse(
+                message="Here are the properties matching your preferences:",
+                ui_component=UIComponent(
+                    type="property_cards",
+                    data={
+                        "filtered": True,
+                        "preferences": "{preferences}"
+                    }
+                ),
+                next_state=FlowState.EXPLORE_PROPERTY_ACTION,
+                show_menu_button=True
+            ),
+
+            FlowState.EXPLORE_PROPERTY_ACTION: StateResponse(
+                message="✅ Got it! Our team will reach out soon with detailed information about this property.",
                 ui_component=UIComponent(
                     type="buttons",
                     data={
                         "options": [
-                            {"value": "urgent", "label": "🔥 Urgent (This month)"},
-                            {"value": "soon", "label": "📅 Soon (1-3 months)"},
-                            {"value": "later", "label": "⏰ Later (3-6 months)"},
-                            {"value": "exploring", "label": "🔍 Just exploring"}
+                            {"value": "another", "label": "🏡 See More Properties"},
+                            {"value": "menu", "label": "🏠 Back to Menu"}
                         ]
                     }
                 ),
-                next_state=FlowState.AVAILABILITY_TIMELINE,
-                show_menu_button=True
-            ),
-            
-            FlowState.AVAILABILITY_TIMELINE: StateResponse(
-                message="🔍 Searching for properties matching your criteria...\n\n{search_summary}",
-                ui_component=None,
-                next_state=FlowState.AVAILABILITY_SEARCH,
-                show_menu_button=True,
-                requires_llm=False  # Can use RAG here if we have property DB
-            ),
-            
-            FlowState.AVAILABILITY_SEARCH: StateResponse(
-                message="Based on your requirements, we have several options available!\n\nOur agent will send detailed property listings with:\n✅ Photos & floor plans\n✅ Pricing & payment options\n✅ Availability status\n\nto your email: {email}",
-                ui_component=UIComponent(
-                    type="buttons",
-                    data={
-                        "options": [
-                            {"value": "callback", "label": "📞 Request Callback"},
-                            {"value": "visit", "label": "📅 Schedule Visit"},
-                            {"value": "menu", "label": "🏠 Main Menu"}
-                        ]
-                    }
-                ),
-                next_state=FlowState.AVAILABILITY_RESULTS,
-                show_menu_button=False
-            ),
-            
-            FlowState.AVAILABILITY_RESULTS: StateResponse(
-                message="Perfect! We'll be in touch with detailed information soon! 🙏",
-                ui_component=None,
-                next_state=FlowState.AVAILABILITY_COMPLETE,
-                show_menu_button=False
-            ),
-            
-            FlowState.AVAILABILITY_COMPLETE: StateResponse(
-                message="Thank you for your interest!",
-                ui_component=None,
                 next_state=FlowState.HANDOFF,
                 show_menu_button=False
             ),
-            
-            # ====== FAQ FLOW ======
-            FlowState.FAQ_START: StateResponse(
-                message="I'm here to answer your questions! 💬\n\nWhat would you like to know about?",
-                ui_component=UIComponent(
-                    type="buttons",
-                    data={
-                        "options": [
-                            {"value": "loan", "label": "💰 Loans & Finance"},
-                            {"value": "amenities", "label": "🏊 Amenities"},
-                            {"value": "documentation", "label": "📄 Documentation"},
-                            {"value": "possession", "label": "🔑 Possession Timeline"},
-                            {"value": "custom", "label": "❓ Other Question"}
-                        ]
-                    }
-                ),
-                next_state=FlowState.FAQ_CATEGORY_SELECT,
-                show_menu_button=True
-            ),
-            
-            FlowState.FAQ_CATEGORY_SELECT: StateResponse(
-                message="",  # Will be filled by FAQ handler
-                ui_component=None,
-                next_state=FlowState.FAQ_HANDLE,
-                show_menu_button=True,
-                requires_llm=True  # LLM + RAG used here
-            ),
-            
-            FlowState.FAQ_HANDLE: StateResponse(
-                message="Is there anything else I can help you with?",
-                ui_component=UIComponent(
-                    type="buttons",
-                    data={
-                        "options": [
-                            {"value": "another", "label": "❓ Ask Another Question"},
-                            {"value": "agent", "label": "💬 Talk to Agent"},
-                            {"value": "menu", "label": "🏠 Main Menu"}
-                        ]
-                    }
-                ),
-                next_state=FlowState.FAQ_FOLLOWUP,
-                show_menu_button=False
-            ),
-            
-            FlowState.FAQ_FOLLOWUP: StateResponse(
-                message="Thank you! Our team is here to help! 🙏",
-                ui_component=None,
-                next_state=FlowState.FAQ_COMPLETE,
-                show_menu_button=False
-            ),
-            
-            FlowState.FAQ_COMPLETE: StateResponse(
-                message="",
-                ui_component=None,
-                next_state=FlowState.HANDOFF,
-                show_menu_button=False
-            ),
-            
-            # ====== OTHER QUERIES ======
-            FlowState.OTHER_START: StateResponse(
-                message="Please tell me what you're looking for, and I'll do my best to help! 💬",
+            # ====== ASK AI FLOW ======
+            FlowState.ASK_START: StateResponse(
+                message="💬 Sure! You can ask me anything about our properties, locations, prices, or availability.\n\nI'll do my best to help you out!",
                 ui_component=UIComponent(
                     type="text_input",
                     data={
-                        "placeholder": "Type your question or query..."
+                        "placeholder": "Type your question here...",
+                        "suggestions": [
+                            "What are the ongoing projects near OMR?",
+                            "What's the price of your 3BHK apartments?",
+                            "Do you have plots available in ECR?",
+                            "What's the possession date for Green Valley Villas?"
+                        ]
                     }
                 ),
-                next_state=FlowState.OTHER_INPUT,
-                show_menu_button=True
+                next_state=FlowState.ASK_QUERY_RECEIVED,
+                show_menu_button=True,
+                requires_llm=False
             ),
-            
-            FlowState.OTHER_INPUT: StateResponse(
-                message="Thank you for your query. Our agent will contact you shortly to assist with: \"{query}\"",
+
+            FlowState.ASK_QUERY_RECEIVED: StateResponse(
+                message="🔍 Let me check that for you...",
+                ui_component=None,
+                next_state=FlowState.ASK_RESPONSE,
+                show_menu_button=True,
+                requires_llm=True  # This will trigger RAG + LLM
+            ),
+
+            FlowState.ASK_RESPONSE: StateResponse(
+                message="{ai_response}",  # Will be filled by LLM
+                ui_component=UIComponent(
+                    type="buttons",
+                    data={
+                        "options": [
+                            {"value": "brochure", "label": "📋 Get Brochure"},
+                            {"value": "callback", "label": "📞 Schedule Call"},
+                            {"value": "another_q", "label": "❓ Ask Another"}
+                        ]
+                    }
+                ),
+                next_state=FlowState.ASK_FOLLOWUP,
+                show_menu_button=True,
+                requires_llm=False
+            ),
+
+            FlowState.ASK_FOLLOWUP: StateResponse(
+                message="Would you like me to help you further?",
                 ui_component=UIComponent(
                     type="buttons",
                     data={
@@ -444,37 +403,7 @@ class StateMachine:
                         ]
                     }
                 ),
-                next_state=FlowState.OTHER_HANDLED,
-                show_menu_button=False
-            ),
-            
-            FlowState.OTHER_HANDLED: StateResponse(
-                message="We'll be in touch soon! 🙏",
-                ui_component=None,
-                next_state=FlowState.OTHER_COMPLETE,
-                show_menu_button=False
-            ),
-            
-            FlowState.OTHER_COMPLETE: StateResponse(
-                message="",
-                ui_component=None,
                 next_state=FlowState.HANDOFF,
-                show_menu_button=False
-            ),
-            
-            # ====== TERMINAL STATES ======
-            FlowState.HANDOFF: StateResponse(
-                message="Thank you for chatting with us! Our team will be in touch soon. Have a great day! 🙏✨",
-                ui_component=UIComponent(
-                    type="buttons",
-                    data={
-                        "options": [
-                            {"value": "restart", "label": "🔄 Start Over"},
-                            {"value": "end", "label": "👋 Close Chat"}
-                        ]
-                    }
-                ),
-                next_state=FlowState.ENDED,
                 show_menu_button=False
             ),
         }

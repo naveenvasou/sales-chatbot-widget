@@ -6,6 +6,7 @@ import ActionButtons from './ui/ActionButtons';
 import LeadForm from './ui/LeadForm';
 import PreferenceForm from './ui/PreferenceForm';
 import TextInput from './ui/TextInput';
+import PropertyCards from './ui/PropertyCards';
 
 const ChatWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -16,6 +17,7 @@ const ChatWidget = () => {
   const [currentState, setCurrentState] = useState(null);
   const [currentCategory, setCurrentCategory] = useState(null);
   const [showMenuButton, setShowMenuButton] = useState(false);
+  const [aiQuery, setAiQuery] = useState('');
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -183,6 +185,35 @@ const ChatWidget = () => {
     }
   };
 
+  const handleAIQuestion = async (e) => {
+    e.preventDefault();
+    if (!aiQuery.trim()) return;
+    
+    const question = aiQuery;
+    setAiQuery(''); // Clear input
+    
+    addMessage({ role: 'user', content: question });
+    setIsLoading(true);
+    
+    try {
+      const response = await chatAPI.askAI(sessionId, question);
+      
+      addMessage({
+        role: 'assistant',
+        content: response.message,
+        uiComponent: response.ui_component,
+      });
+    } catch (error) {
+      console.error('AI question error:', error);
+      addMessage({ 
+        role: 'assistant', 
+        content: 'Sorry, I had trouble processing that. Could you rephrase?' 
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const renderUIComponent = (component) => {
     if (!component) return null;
 
@@ -231,6 +262,17 @@ const ChatWidget = () => {
               skipLabel={component.data.skip_label}
               onSubmit={(text) => handleUserInput('text', text)}
               disabled={isLoading}
+            />
+          );
+        
+        case 'property_cards':
+          return (
+            <PropertyCards
+              propertyType={component.data.property_type}
+              filtered={component.data.filtered}
+              preferences={component.data.preferences}
+              onAction={(action, propertyId) => handleUserInput('property_action', { action, propertyId })}
+              onShowMore={() => handleUserInput('button', 'show_more')}
             />
           );
 
@@ -286,6 +328,7 @@ const ChatWidget = () => {
 
           {/* Messages Area */}
           {!isMinimized && (
+            <>
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 chat-messages">
               {messages.map((message, index) => (
                 <div key={index} className="message-fade-in">
@@ -327,6 +370,28 @@ const ChatWidget = () => {
 
               <div ref={messagesEndRef} />
             </div>
+
+            {/* Persistent AI Input */}
+            <div className="border-t border-gray-200 p-3 bg-white">
+              <form onSubmit={handleAIQuestion} className="flex gap-2">
+                <input
+                  type="text"
+                  value={aiQuery}
+                  onChange={(e) => setAiQuery(e.target.value)}
+                  placeholder="Ask me anything about properties..."
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm"
+                  disabled={isLoading}
+                />
+                <button
+                  type="submit"
+                  disabled={isLoading || !aiQuery.trim()}
+                  className="bg-purple-600 text-white p-2 rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
+                >
+                  <Send size={20} />
+                </button>
+              </form>
+            </div>
+            </>
           )}
         </div>
       )}

@@ -44,6 +44,15 @@ export const chatAPI = {
     return data;
   },
 
+  // Ask AI question
+  askAI: async (sessionId, question) => {
+    const { data } = await api.post('/chat/ask-ai', {
+      session_id: sessionId,
+      question,
+    });
+    return data;
+  },
+
   // Back to menu
   backToMenu: async (sessionId) => {
     const { data } = await api.post('/chat/menu', {

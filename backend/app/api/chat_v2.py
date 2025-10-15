@@ -7,6 +7,8 @@ from app.services.conversation_service_v2 import conversation_service_v2
 from app.services.flow_manager import flow_manager
 from app.services.database_service import db_service
 from app.services.email_service import email_service
+from app.services.property_service import property_service
+from app.services.ai_service import ai_service
 
 router = APIRouter(prefix="/api/v2", tags=["chat-v2"])
 
@@ -460,3 +462,53 @@ def _update_lead_from_flow_data(db: Session, session_id: str, flow_data: Dict[st
     
     if lead_update:
         db_service.create_or_update_lead(db, session_id, lead_update)
+        
+@router.get("/properties/{property_type}")
+async def get_properties(property_type: str, limit: int = 6):
+    """Get properties by type"""
+    properties = property_service.get_properties_by_type(property_type, limit)
+    return {"properties": properties, "count": len(properties)}
+
+@router.post("/properties/filter")
+async def filter_properties(filters: dict):
+    """Filter properties"""
+    properties = property_service.filter_properties(
+        property_type=filters.get("property_type"),
+        budget=filters.get("budget"),
+        location=filters.get("location")
+    )
+    return {"properties": properties, "count": len(properties)}
+
+
+@router.post("/chat/ask-ai")
+async def ask_ai(request: dict, db: Session = Depends(get_db)):
+    """Handle AI question"""
+    session_id = request.get("session_id")
+    question = request.get("question")
+    
+    # Get conversation history for context
+    history = db_service.get_conversation_history(db, session_id)
+    gemini_history = [
+        {"role": msg.role, "parts": [msg.message]}
+        for msg in history[-5:]  # Last 5 messages
+    ]
+    
+    # Get AI response
+    response = await ai_service.answer_question(question, gemini_history)
+    
+    # Save messages
+    db_service.save_message(db, session_id, "user", question, intent="ai_question")
+    db_service.save_message(db, session_id, "assistant", response, intent="ai_answer")
+    
+    return {
+        "message": response,
+        "ui_component": {
+            "type": "buttons",
+            "data": {
+                "options": [
+                    {"value": "brochure", "label": "📋 Get Brochure"},
+                    {"value": "callback", "label": "📞 Schedule Call"}
+                ]
+            }
+        }
+    }
