@@ -4,7 +4,7 @@ const ActionButtons = ({ options, onSelect, disabled }) => {
       {options.map((option) => (
         <button
           key={option.value}
-          onClick={() => onSelect(option.value)}
+          onClick={() => onSelect(option)}
           disabled={disabled}
           className="w-full px-4 py-3 bg-purple-100 text-purple-800 rounded-lg hover:bg-purple-200 transition font-medium disabled:opacity-50"
         >

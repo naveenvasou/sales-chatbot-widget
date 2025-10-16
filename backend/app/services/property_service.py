@@ -2,9 +2,12 @@ import json
 from pathlib import Path
 from typing import List, Dict, Optional
 
+current_file_path = Path(__file__).resolve()
+json_file_path = current_file_path.parent.parent.parent / 'data' / 'properties.json'
+
 class PropertyService:
     def __init__(self):
-        self.properties_file = Path("backend/data/properties.json")
+        self.properties_file = Path(json_file_path)
         self.properties = self._load_properties()
     
     def _load_properties(self) -> List[Dict]:

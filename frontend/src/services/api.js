@@ -66,6 +66,17 @@ export const chatAPI = {
     const { data } = await api.post('/chat/end', { session_id: sessionId });
     return data;
   },
+
+  // Property action
+  propertyAction: async (sessionId, action, propertyId) => {
+    const { data } = await api.post('/chat/property-action', {
+      session_id: sessionId,
+      action,
+      property_id: propertyId,
+    });
+    return data;
+  },
+
 };
 
 export default api;

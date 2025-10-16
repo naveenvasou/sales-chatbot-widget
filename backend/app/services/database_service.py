@@ -2,6 +2,8 @@ from sqlalchemy.orm import Session
 from app.models.lead import Lead, ChatMessage, ChatSession
 from datetime import datetime
 import uuid
+import json
+from typing import Any
 
 class DatabaseService:
     
@@ -92,6 +94,39 @@ class DatabaseService:
             session.is_active = False
             session.ended_at = datetime.utcnow()
             db.commit()
+            
+    @staticmethod
+    def update_session_context(db: Session, session_id: str, context_key: str, context_value: Any):
+        """Update session context data"""
+        session = db.query(ChatSession).filter(ChatSession.session_id == session_id).first()
+        if session:
+            # Parse existing context
+            context = {}
+            if session.context_data:
+                try:
+                    context = json.loads(session.context_data)
+                except:
+                    context = {}
+            
+            # Update context
+            context[context_key] = context_value
+            session.context_data = json.dumps(context)
+            db.commit()
+
+    @staticmethod
+    def get_session_context(db: Session, session_id: str, context_key: str = None):
+        """Get session context data"""
+        session = db.query(ChatSession).filter(ChatSession.session_id == session_id).first()
+        if not session or not session.context_data:
+            return None
+        
+        try:
+            context = json.loads(session.context_data)
+            if context_key:
+                return context.get(context_key)
+            return context
+        except:
+            return None
 
 # Create singleton instance
 db_service = DatabaseService()

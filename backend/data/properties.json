@@ -6,7 +6,7 @@
     "location": "OMR, Chennai",
     "price": "50L - 1Cr",
     "bedrooms": "2BHK, 3BHK",
-    "image_url": "https://via.placeholder.com/400x300",
+    "image_path": "https://via.placeholder.com/400x300",
     "description": "Luxury apartments with modern amenities...",
     "amenities": ["pool", "gym", "parking"],
     "possession": "Ready to move"
@@ -18,7 +18,7 @@
     "location": "ECR, Chennai",
     "price": "1.5Cr - 3Cr",
     "bedrooms": "3BHK, 4BHK",
-    "image_url": "https://via.placeholder.com/400x300",
+    "image_path": "https://via.placeholder.com/400x300",
     "description": "Spacious villas near the beach...",
     "amenities": ["garden", "security", "clubhouse"],
     "possession": "Under construction"

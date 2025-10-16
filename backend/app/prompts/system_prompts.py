@@ -14,7 +14,7 @@ CONVERSATION_STAGES = {
 # Category definitions
 CATEGORIES = {
     "brochure": {
-        "label": "Get Property Brochure",
+        "label": "Get Brochure",
         "emoji": "📋",
         "action": "BROCHURE"
     },

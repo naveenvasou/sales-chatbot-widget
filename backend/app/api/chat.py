@@ -153,3 +153,19 @@ async def get_chat_history(session_id: str, db: Session = Depends(get_db)):
             for msg in history
         ]
     }
+    
+@router.post("/chat/select-category")
+async def select_category(request: dict, db: Session = Depends(get_db)):
+    """Handle category selection"""
+    session_id = request.get("session_id")
+    category = request.get("category")
+    
+    # Start the flow for selected category
+    result = flow_manager.start_category_flow(category, {})
+    
+    return {
+        "message": result["message"],
+        "current_state": result["current_state"],
+        "ui_component": result.get("ui_component"),
+        "show_menu_button": result.get("show_menu_button", True)
+    }

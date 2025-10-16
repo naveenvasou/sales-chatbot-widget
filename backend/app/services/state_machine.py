@@ -11,19 +11,14 @@ class FlowState(str, Enum):
     LEAD_CAPTURE = "lead_capture"
     
     # Brochure flow
-    BROCHURE_START = "brochure_start"
-    BROCHURE_PREFERENCES = "brochure_preferences"
-    BROCHURE_PREFERENCES_COLLECTED = "brochure_preferences_collected"
+    BROCHURE_SEND = "brochure_send"
     BROCHURE_COMPLETE = "brochure_complete"
     
     # Call schedule flow
     BOOKING_START = "booking_start"
-    BOOKING_PHONE_CONFIRM = "booking_phone_confirm"
-    BOOKING_PREFERENCE = "booking_preference"
-    BOOKING_PREFERENCES_COLLECTED = "booking_preferences_collected"
-    BOOKING_CALL_TIME = "booking_call_time"
+    BOOKING_TIME_SELECTION = "booking_time_selection"
     BOOKING_CONFIRMATION = "booking_confirmation"
-    BOOKING_COMPLETE = "booking_complete"
+ 
     
     # Explore properties flow
     EXPLORE_START = "explore_start"
@@ -65,20 +60,37 @@ class StateMachine:
     """Manages chatbot state transitions and responses"""
     
     def __init__(self):
+        self.lead_context = {"name":None, "email":None, "phone":None}
         self.state_config = self._build_state_config()
+        
     
     def _build_state_config(self) -> Dict[FlowState, StateResponse]:
         """Build configuration for all states"""
         return {
             # ====== BROCHURE FLOW ======
-            FlowState.BROCHURE_START: StateResponse(
-                message="✅ Perfect! Your property brochure is on its way to your email.\n\nLet's find properties that match your needs! 🏡",
+            FlowState.BROCHURE_SEND: StateResponse(
+                message="✅ Perfect! Our brochure is on its way to your email.",
                 ui_component=None,
-                next_state=FlowState.BROCHURE_PREFERENCES,
+                next_state=FlowState.BROCHURE_COMPLETE,
                 show_menu_button=True
             ),
             
-            FlowState.BROCHURE_PREFERENCES: StateResponse(
+            FlowState.BROCHURE_COMPLETE: StateResponse(
+                message="Let's find properties that match your needs! 🏡",
+                ui_component=UIComponent(
+                    type="buttons",
+                    data={
+                        "options": [
+                            {"value": "explore_properties ", "label": "Explore Properties"},
+                            {"value": "back_to_menu", "label": "Back to Menu"}
+                        ]
+                    }
+                ),
+                next_state=FlowState.HANDOFF,
+                show_menu_button=True
+            ),
+            
+            """ FlowState.BROCHURE_PREFERENCES: StateResponse(
                 message="Please share your preferences:",
                 ui_component=UIComponent(
                     type="preference_form",
@@ -128,106 +140,31 @@ class StateMachine:
                 ui_component=None,
                 next_state=FlowState.BROCHURE_COMPLETE,
                 show_menu_button=True
-            ),
+            ), """ : '',
             
-            FlowState.BROCHURE_COMPLETE: StateResponse(
-                message="Would you like to schedule a quick call with us?",
-                ui_component=UIComponent(
-                    type="buttons",
-                    data={
-                        "options": [
-                            {"value": "book_call", "label": "📞 Book a Call"},
-                            {"value": "maybe_later", "label": "Maybe Later"}
-                        ]
-                    }
-                ),
-                next_state=FlowState.HANDOFF,
-                show_menu_button=True
-            ),
             
             # ====== CALL SCHEDULE FLOW ======
             FlowState.BOOKING_START: StateResponse(
-                message="✅ Let's schedule your call with our property expert!\n\nWould you like to use the same contact number you provided earlier?",
+                message="Great! Let’s schedule a quick call with our property expert.",
                 ui_component=UIComponent(
-                    type="buttons",
+                    type="number_confirmation",
                     data={
-                        "options": [
-                            {"value": "yes", "label": "Yes 👍"},
-                            {"value": "different", "label": "Use a different number ☎️"}
+                        "fields": [
+                            {"name": "number_field", "label": str(self.lead_context["phone"]), "options": [{"value": "confirm", "label": "Continue"}]}
                         ]
                     }
                 ),
-                next_state=FlowState.BOOKING_PHONE_CONFIRM,
+                next_state=FlowState.BOOKING_TIME_SELECTION,
                 show_menu_button=True
             ),
-            
-            FlowState.BOOKING_PHONE_CONFIRM: StateResponse(
-                message="",  # Will be dynamic based on phone choice
-                ui_component=None,
-                next_state=FlowState.BOOKING_PREFERENCE,
-                show_menu_button=True
-            ),
-            
-            FlowState.BOOKING_PREFERENCE: StateResponse(
-                message="Please share your preferences:",
-                ui_component=UIComponent(
-                    type="preference_form",
-                    data={
-                        "fields": [
-                            {
-                                "name": "budget",
-                                "label": "💰 Budget Range",
-                                "type": "dropdown",
-                                "options": [
-                                    {"value": "under_50", "label": "Under ₹50 Lakhs"},
-                                    {"value": "50_100", "label": "₹50L - ₹1 Crore"},
-                                    {"value": "100_200", "label": "₹1 Cr - ₹2 Crore"},
-                                    {"value": "200_plus", "label": "₹2 Crore+"}
-                                ],
-                                "required": True
-                            },
-                            {
-                                "name": "location",
-                                "label": "📍 Preferred Location",
-                                "type": "multiselect_chips",
-                                "options": ["OMR", "ECR", "Velachery", "Anna Nagar", "T Nagar"],
-                                "required": True
-                            },
-                            {
-                                "name": "property_type",
-                                "label": "🏠 Property Type",
-                                "type": "buttons",
-                                "options": [
-                                    {"value": "apartment", "label": "🏢 Apartments"},
-                                    {"value": "villa", "label": "🏡 Villas"},
-                                    {"value": "plot", "label": "📐 Plots"},
-                                    {"value": "commercial", "label": "🏪 Commercial"}
-                                ],
-                                "required": True
-                            }
-                        ],
-                        "submit_label": "Continue"
-                    }
-                ),
-                next_state=FlowState.BOOKING_PREFERENCES_COLLECTED,
-                show_menu_button=True
-            ),
-            
-            FlowState.BOOKING_PREFERENCES_COLLECTED: StateResponse(
-                message="Great! I've noted your preferences so our expert can be ready with suitable options. ✅",
-                ui_component=None,
-                next_state=FlowState.BOOKING_CALL_TIME,
-                show_menu_button=True
-            ),
-            
-            FlowState.BOOKING_CALL_TIME: StateResponse(
-                message="Which time would you prefer for the call?",
+            FlowState.BOOKING_TIME_SELECTION: StateResponse(
+                message="When works best for you?",
                 ui_component=UIComponent(
                     type="buttons",
                     data={
                         "options": [
-                            {"value": "morning", "label": "☀️ Morning (9 AM – 12 PM)"},
-                            {"value": "afternoon", "label": "🌤️ Afternoon (12 PM – 4 PM)"},
+                            {"value": "morning", "label": "🌞 Morning (9 AM – 12 PM)"},
+                            {"value": "afternoon", "label": "☀️ Afternoon (12 PM – 4 PM)"},
                             {"value": "evening", "label": "🌇 Evening (4 PM – 8 PM)"}
                         ]
                     }
@@ -235,29 +172,20 @@ class StateMachine:
                 next_state=FlowState.BOOKING_CONFIRMATION,
                 show_menu_button=True
             ),
-            
             FlowState.BOOKING_CONFIRMATION: StateResponse(
-                message="✅ All set! Your appointment has been scheduled.\n\nOur property expert will call you at {phone} during the {time_slot}.",
-                ui_component=None,
-                next_state=FlowState.BOOKING_COMPLETE,
-                show_menu_button=True
-            ),
-            
-            FlowState.BOOKING_COMPLETE: StateResponse(
-                message="Is there anything else I can help you with?",
+                message="✅ All set! Your appointment has been scheduled.\n\nOur property expert will call you during the {time_slot}.",
                 ui_component=UIComponent(
                     type="buttons",
                     data={
-                        "options": [
-                            {"value": "ask_question", "label": "❓ Ask a Question"},
-                            {"value": "menu", "label": "🏠 Back to Menu"}
-                        ]
-                    }
+                            "options": [
+                            {"value": "explore_properties", "label": "🏡 Explore Properties"},
+                            {"value": "back_to_menu", "label": "🏠 Back to Menu"}
+                            ]
+                        }
                 ),
                 next_state=FlowState.HANDOFF,
                 show_menu_button=False
             ),
-            
             # ====== EXPLORE PROPERTIES FLOW ======
             FlowState.EXPLORE_START: StateResponse(
                 message="🏡 Let's find your ideal property!\n\nPlease choose the type of property you're interested in:",
@@ -349,16 +277,14 @@ class StateMachine:
             ),
             # ====== ASK AI FLOW ======
             FlowState.ASK_START: StateResponse(
-                message="💬 Sure! You can ask me anything about our properties, locations, prices, or availability.\n\nI'll do my best to help you out!",
+                message="💬 Sure! You can ask me anything about our properties, locations, prices, or availability.\n\nI'll do my best to help you out!\n\n💡 Try asking questions using the input field below:",
                 ui_component=UIComponent(
-                    type="text_input",
+                    type="buttons",
                     data={
-                        "placeholder": "Type your question here...",
-                        "suggestions": [
-                            "What are the ongoing projects near OMR?",
-                            "What's the price of your 3BHK apartments?",
-                            "Do you have plots available in ECR?",
-                            "What's the possession date for Green Valley Villas?"
+                        "options": [
+                            {"value": "omr_projects", "label": "Projects near OMR?"},
+                            {"value": "3bhk_price", "label": "3BHK apartment prices?"},
+                            {"value": "ecr_plots", "label": "Plots in ECR?"}
                         ]
                     }
                 ),
@@ -414,6 +340,8 @@ class StateMachine:
         context: Dict[str, Any] = None
     ) -> StateResponse:
         """Get response for a given state with context"""
+        self.lead_context = context
+        self.state_config = self._build_state_config()
         response = self.state_config.get(state)
         
         if not response:

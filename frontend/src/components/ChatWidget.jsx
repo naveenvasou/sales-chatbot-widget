@@ -5,7 +5,7 @@ import CategoryButtons from './ui/CategoryButtons';
 import ActionButtons from './ui/ActionButtons';
 import LeadForm from './ui/LeadForm';
 import PreferenceForm from './ui/PreferenceForm';
-import TextInput from './ui/TextInput';
+import NumberConfirmation from './ui/NumberConfirmation';
 import PropertyCards from './ui/PropertyCards';
 
 const ChatWidget = () => {
@@ -62,7 +62,7 @@ const ChatWidget = () => {
     setMessages((prev) => [...prev, { ...message, timestamp: new Date() }]);
     
     // If no UI component but should show continue button
-    if (!message.uiComponent && message.role === 'assistant') {
+    /* if (!message.uiComponent && message.role === 'assistant') {
       // Check if we should auto-show a continue button
       setTimeout(() => {
         setMessages((prev) => {
@@ -84,12 +84,12 @@ const ChatWidget = () => {
           return prev;
         });
       }, 500);
-    }
+    } */
   };
 
   const handleCategorySelect = async (category) => {
-    setCurrentCategory(category);
-    addMessage({ role: 'user', content: `Selected: ${category}` });
+    setCurrentCategory(category.id);
+    addMessage({ role: 'user', content: `${category.label}` });
     setIsLoading(true);
 
     try {
@@ -102,6 +102,20 @@ const ChatWidget = () => {
         content: response.message,
         uiComponent: response.ui_component,
       });
+
+      console.log(response.ui_component)
+
+      if (!response.ui_component) {
+        const next_response = await chatAPI.sendInput(sessionId, response.current_state, 'assisstant', 'continue');
+        setCurrentState(next_response.current_state);
+        setShowMenuButton(next_response.show_menu_button);
+        addMessage({
+        role: 'assistant',
+        content: next_response.message,
+        uiComponent: next_response.ui_component,
+        });
+      }
+      
     } catch (error) {
       console.error('Category error:', error);
       addMessage({ role: 'assistant', content: 'Error occurred. Please try again.' });
@@ -131,6 +145,19 @@ const ChatWidget = () => {
         content: response.message,
         uiComponent: response.ui_component,
       });
+
+      if (!response.ui_component) {
+        const next_response = await chatAPI.sendInput(sessionId, response.current_state, 'assisstant', 'continue');
+        setCurrentState(next_response.current_state);
+        setShowMenuButton(next_response.show_menu_button);
+        addMessage({
+        role: 'assistant',
+        content: next_response.message,
+        uiComponent: next_response.ui_component,
+        });
+      }
+
+
     } catch (error) {
       console.error('Lead submit error:', error);
       addMessage({ role: 'assistant', content: 'Please check your information and try again.' });
@@ -141,7 +168,7 @@ const ChatWidget = () => {
 
   const handleUserInput = async (inputType, inputData) => {
     // Add user message
-    const userMessage = typeof inputData === 'string' ? inputData : 'Submitted';
+    const userMessage = typeof inputData === 'string' ? inputData : inputData.label;
     addMessage({ role: 'user', content: userMessage });
     setIsLoading(true);
 
@@ -253,17 +280,6 @@ const ChatWidget = () => {
             disabled={isLoading}
           />
         );
-
-        case 'text_input':
-          return (
-            <TextInput
-              placeholder={component.data.placeholder}
-              optional={component.data.optional}
-              skipLabel={component.data.skip_label}
-              onSubmit={(text) => handleUserInput('text', text)}
-              disabled={isLoading}
-            />
-          );
         
         case 'property_cards':
           return (
@@ -271,10 +287,37 @@ const ChatWidget = () => {
               propertyType={component.data.property_type}
               filtered={component.data.filtered}
               preferences={component.data.preferences}
-              onAction={(action, propertyId) => handleUserInput('property_action', { action, propertyId })}
+              onAction={async (action, propertyId) => {
+                addMessage({ role: 'user', content: `Requested ${action} for property` });
+                setIsLoading(true);
+                try {
+                  const response = await chatAPI.propertyAction(sessionId, action, propertyId);
+                  setCurrentState(response.current_state);
+                  setShowMenuButton(response.show_menu_button);
+                  addMessage({
+                    role: 'assistant',
+                    content: response.message,
+                    uiComponent: response.ui_component,
+                  });
+                } catch (error) {
+                  console.error('Property action error:', error);
+                  addMessage({ role: 'assistant', content: 'Error occurred. Please try again.' });
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
               onShowMore={() => handleUserInput('button', 'show_more')}
             />
           );
+
+          case 'number_confirmation':
+            return (
+              <NumberConfirmation
+                fields={component.data.fields}
+                onSubmit={(data) => handleUserInput('number_confirmation', data)}
+                disabled={isLoading}
+              />
+            );
 
       default:
         return null;
@@ -283,12 +326,12 @@ const ChatWidget = () => {
   // ... (previous code above)
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-4 right-4 left-4 md:bottom-6 md:right-6 md:left-auto z-50 flex flex-col items-end">
       {isOpen && (
         <div
-          className={`mb-4 bg-white rounded-2xl shadow-2xl transition-all duration-300 ${
+          className={`bg-white rounded-2xl shadow-2xl transition-all duration-300 ${
             isMinimized ? 'h-16' : 'h-[600px]'
-          } w-[380px] flex flex-col overflow-hidden slide-up`}
+          } w-full md:w-[380px] md:mb-4 flex flex-col overflow-hidden slide-up`}
         >
           {/* Header */}
           <div className="bg-gradient-to-r from-purple-600 to-purple-800 text-white p-4 flex items-center justify-between">
@@ -329,7 +372,7 @@ const ChatWidget = () => {
           {/* Messages Area */}
           {!isMinimized && (
             <>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 chat-messages">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 chat-messages overscroll-y-contain">
               {messages.map((message, index) => (
                 <div key={index} className="message-fade-in">
                   {message.role === 'user' ? (
@@ -397,13 +440,14 @@ const ChatWidget = () => {
       )}
 
       {/* Chat Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="bg-gradient-to-r from-purple-600 to-purple-800 text-white w-16 h-16 rounded-full shadow-2xl hover:shadow-purple-500/50 hover:scale-110 transition-all duration-300 flex items-center justify-center"
-      >
-        {isOpen ? <X size={28} /> : <MessageCircle size={28} />}
-      </button>
-
+      {!isOpen && (
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="bg-gradient-to-r from-purple-600 to-purple-800 text-white w-16 h-16 rounded-full shadow-2xl hover:shadow-purple-500/50 hover:scale-110 transition-all duration-300 flex items-center justify-center self-end"
+        >
+          {!isOpen && <MessageCircle size={28} />}
+        </button>
+      )}
       {!isOpen && (
         <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold animate-pulse">
           1

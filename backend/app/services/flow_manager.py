@@ -1,6 +1,6 @@
 from typing import Dict, Any, Optional
 from app.services.state_machine import state_machine, FlowState
-
+from app.prompts.system_prompts import CATEGORIES
 
 class FlowManager:
     """Manages conversation flow and state transitions"""
@@ -12,13 +12,13 @@ class FlowManager:
         """Start flow for selected category"""
         
         category_to_state = {
-            "brochure": FlowState.BROCHURE_START,
+            "brochure": FlowState.BROCHURE_SEND,
             "booking": FlowState.BOOKING_START,
             "explore": FlowState.EXPLORE_START,
             "question": FlowState.ASK_START
         }
-        
-        start_state = category_to_state.get(category, FlowState.FAQ_START)
+
+        start_state = category_to_state.get(category, FlowState.ASK_START)
         
         context = {
             "name": lead_data.get("name", "there"),
@@ -30,20 +30,20 @@ class FlowManager:
         start_response = self.state_machine.get_state_response(start_state, context)
         
         # IMPORTANT: If start state has no UI but next state does, fetch next state
-        if not start_response.ui_component and start_response.next_state:
-            next_response = self.state_machine.get_state_response(start_response.next_state, context)
+        #if not start_response.ui_component and start_response.next_state:
+        #    next_response = self.state_machine.get_state_response(start_response.next_state, context)
             
             # Combine messages
-            combined_message = f"{start_response.message}\n\n{next_response.message}"
+        #    combined_message = f"{start_response.message}\n\n{next_response.message}"
             
-            return {
-                "message": combined_message,
-                "current_state": start_response.next_state.value,  # Use next state
-                "next_state": next_response.next_state.value if next_response.next_state else None,
-                "ui_component": self._serialize_ui_component(next_response.ui_component),
-                "show_menu_button": next_response.show_menu_button,
-                "requires_llm": next_response.requires_llm
-            }
+        #    return {
+        #        "message": combined_message,
+        #        "current_state": start_response.next_state.value,  # Use next state
+        #        "next_state": next_response.next_state.value if next_response.next_state else None,
+        #        "ui_component": self._serialize_ui_component(next_response.ui_component),
+        #        "show_menu_button": next_response.show_menu_button,
+        #        "requires_llm": next_response.requires_llm
+        #    }
     
         # Otherwise return start state as-is
         return {
@@ -68,8 +68,61 @@ class FlowManager:
         except ValueError:
             state_enum = FlowState.GREETING
         
+        # Special handling for EXPLORE_START (property type selection)
+        if state_enum == FlowState.EXPLORE_START:
+            property_type = user_input
+            property_type_labels = {
+                "apartment": "Apartments",
+                "villa": "Villas",
+                "plot": "Residential Plots",
+                "commercial": "Commercial Spaces"
+            }
+            
+            return {
+                "message": f"Here are some available {property_type_labels.get(property_type, 'Properties')} in Chennai:",
+                "current_state": FlowState.EXPLORE_PROPERTY_TYPE.value,
+                "next_state": FlowState.EXPLORE_SHOW_MORE.value,
+                "ui_component": {
+                    "type": "property_cards",
+                    "data": {
+                        "property_type": property_type,
+                        "limit": 6
+                    }
+                },
+                "show_menu_button": True,
+                "requires_llm": False
+            }
+        
         # Get next state
         next_state = self.state_machine.get_next_state(state_enum, user_input)
+        
+        if next_state=="handoff":
+            if user_input["value"]=="explore_properties":
+                next_state=FlowState.EXPLORE_START
+            if user_input["value"]=="back_to_menu":
+                categories = [
+                        {
+                            "id": key,
+                            "label": value["label"],
+                            "emoji": value["emoji"]
+                        }
+                        for key, value in CATEGORIES.items()
+                    ]
+                
+                return {
+                    "message": "",
+                    "type": "greeting",
+                    "show_categories": True,
+                    "current_state":"greeting",
+                    "next_state":"category_selection",
+                    "ui_component":{
+                        "type": "category_buttons",
+                        "data": {
+                            "categories":categories
+                        }
+                    },
+                    "show_menu_button": False
+                }
         
         # Prepare context with user input
         full_context = context or {}

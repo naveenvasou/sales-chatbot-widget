@@ -67,6 +67,9 @@ class ChatSession(Base):
     message_count = Column(Integer, default=0)
     lead_captured = Column(Boolean, default=False)
     
+    # Context tracking (NEW)
+    context_data = Column(Text, nullable=True)  # JSON string for flexible context
+    
     # User Info (optional, for analytics)
     user_ip = Column(String(50), nullable=True)
     user_agent = Column(String(500), nullable=True)

@@ -9,6 +9,9 @@ from app.services.database_service import db_service
 from app.services.email_service import email_service
 from app.services.property_service import property_service
 from app.services.ai_service import ai_service
+from app.models.lead import Lead
+import json
+import sys
 
 router = APIRouter(prefix="/api/v2", tags=["chat-v2"])
 
@@ -22,7 +25,7 @@ class ChatInitRequest(BaseModel):
 class CategorySelectRequest(BaseModel):
     """User selects a category"""
     session_id: str
-    category: Literal["brochure", "booking", "availability", "question", "other"]
+    category: Dict
 
 
 class LeadCaptureRequest(BaseModel):
@@ -117,44 +120,84 @@ async def select_category(
             db=db,
             session_id=request.session_id,
             role="user",
-            message=f"Selected category: {request.category}",
-            intent="CATEGORY_SELECTION"
+            message=request.category["label"],
+            intent=request.category["id"].upper()
         )
+    
         
-        # Update lead with selected category
-        db_service.create_or_update_lead(
-            db=db,
-            session_id=request.session_id,
-            lead_data={"selected_category": request.category}
-        )
+        lead = db.query(Lead).filter(Lead.session_id == request.session_id).first()
         
-        # Get lead capture form
-        form_response = conversation_service_v2.get_lead_capture_form(request.category)
+        if not lead:
+            # Get lead capture form
+            form_response = conversation_service_v2.get_lead_capture_form(request.category["id"])
         
-        # Save bot's form request
-        db_service.save_message(
-            db=db,
-            session_id=request.session_id,
-            role="assistant",
-            message=form_response["message"],
-            intent="LEAD_CAPTURE"
-        )
-        
-        return ChatResponse(
-            session_id=request.session_id,
-            message=form_response["message"],
-            current_state="lead_capture",
-            next_state="lead_submitted",
-            ui_component={
-                "type": "lead_form",
-                "data": {
-                    "fields": form_response["form_fields"]
+            # Save bot's form request
+            db_service.save_message(
+                db=db,
+                session_id=request.session_id,
+                role="assistant",
+                message=form_response["message"],
+                intent="LEAD_CAPTURE"
+            )
+            
+            return ChatResponse(
+                session_id=request.session_id,
+                message=form_response["message"],
+                current_state="lead_capture",
+                next_state="lead_submitted",
+                ui_component={
+                    "type": "lead_form",
+                    "data": {
+                        "fields": form_response["form_fields"]
+                    }
+                },
+                show_menu_button=True
+            )
+            
+        else:
+            # Lead already exists, skip to category flow
+            flow_response = flow_manager.start_category_flow(
+                category=request.category["id"],
+                lead_data={
+                    "name": lead.name,
+                    "email": lead.email,
+                    "phone": lead.phone
                 }
-            },
-            show_menu_button=True
-        )
+            )
+            
+            # Save assistant's response
+            db_service.save_message(
+                db=db,
+                session_id=request.session_id,
+                role="assistant",
+                message=flow_response["message"],
+                intent=flow_response["current_state"]
+            )
+            
+            return ChatResponse(
+                session_id=request.session_id,
+                message=flow_response["message"],
+                current_state=flow_response["current_state"],
+                next_state=flow_response["next_state"],
+                ui_component=flow_response["ui_component"],
+                show_menu_button=flow_response["show_menu_button"],
+                metadata={"lead_captured": True}
+            )
         
     except Exception as e:
+        # Get the exception details (type, value, traceback object)
+        _, _, tb = sys.exc_info() 
+        
+        # Trace the traceback object until the last (most recent) frame
+        f = tb
+        while f.tb_next:
+            f = f.tb_next
+            
+        # 'f.tb_frame' is the frame object where the exception occurred
+        filename = f.tb_frame.f_code.co_filename
+        line_number = f.tb_lineno
+
+        print(f"Error found in file: {filename} at line {line_number}")
         print(f"Error in category selection: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -214,7 +257,7 @@ async def submit_lead(
             intent="LEAD_SUBMITTED"
         )
         
-        # Send email notification (lead captured!)
+        """ # Send email notification (lead captured!)
         await email_service.send_lead_notification(
             lead_data={
                 "name": cleaned_data["name"],
@@ -224,7 +267,7 @@ async def submit_lead(
                 "selected_category": request.category
             },
             session_id=request.session_id
-        )
+        ) """
         
         # Start category-specific flow using state machine
         flow_response = flow_manager.start_category_flow(
@@ -266,6 +309,7 @@ async def handle_user_input(
     """
     try:
         # Get lead data for context
+
         lead = db_service.get_lead_by_session(db, request.session_id)
         if not lead or not lead.name:
             raise HTTPException(
@@ -279,16 +323,53 @@ async def handle_user_input(
             "phone": lead.phone
         }
         
-        # Save user input
-        user_message = _format_user_input(request.input_type, request.input_data)
-        db_service.save_message(
-            db=db,
-            session_id=request.session_id,
-            role="user",
-            message=user_message,
-            intent=request.current_state
-        )
+        if(request.input_type != "assisstant"):
+            # Save user input
+            user_message = _format_user_input(request.input_type, request.input_data)
+            db_service.save_message(
+                db=db,
+                session_id=request.session_id,
+                role="user",
+                message=user_message,
+                intent=request.current_state
+            )
         
+        if request.input_type == "button" and request.input_data == "show_more":
+            return {
+                "message": "Want to see more properties? Let me know your preferences to narrow it down:",
+                "current_state": "explore_show_more",
+                "ui_component": {
+                    "type": "preference_form",
+                    "data": {
+                        "fields": [
+                            {
+                                "name": "budget",
+                                "label": "💰 Budget Range",
+                                "type": "dropdown",
+                                "options": [
+                                    {"value": "under_50", "label": "Under ₹50 Lakhs"},
+                                    {"value": "50_100", "label": "₹50L - ₹1 Crore"},
+                                    {"value": "100_200", "label": "₹1 Cr - ₹2 Crore"},
+                                    {"value": "200_plus", "label": "₹2 Crore+"}
+                                ],
+                                "required": False
+                            },
+                            {
+                                "name": "location",
+                                "label": "📍 Preferred Location",
+                                "type": "multiselect_chips",
+                                "options": ["OMR", "ECR", "Velachery", "Anna Nagar", "T Nagar"],
+                                "required": False
+                            }
+                        ],
+                        "submit_label": "Show Matching Properties"
+                    }
+                },
+                "show_menu_button": True
+            }
+        
+            
+            
         # Process input through flow manager
         flow_response = flow_manager.handle_user_input(
             current_state=request.current_state,
@@ -325,6 +406,19 @@ async def handle_user_input(
     except HTTPException:
         raise
     except Exception as e:
+        # Get the exception details (type, value, traceback object)
+        _, _, tb = sys.exc_info() 
+        
+        # Trace the traceback object until the last (most recent) frame
+        f = tb
+        while f.tb_next:
+            f = f.tb_next
+            
+        # 'f.tb_frame' is the frame object where the exception occurred
+        filename = f.tb_frame.f_code.co_filename
+        line_number = f.tb_lineno
+
+        print(f"Error found in file: {filename} at line {line_number}")
         print(f"Error handling user input: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -486,11 +580,23 @@ async def ask_ai(request: dict, db: Session = Depends(get_db)):
     session_id = request.get("session_id")
     question = request.get("question")
     
+    # Map button values to actual questions
+    question_map = {
+        "omr_projects": "What are the ongoing projects near OMR?",
+        "3bhk_price": "What's the price of your 3BHK apartments?",
+        "ecr_plots": "Do you have plots available in ECR?",
+        "custom": "I have a custom question"
+    }
+    
+    # If it's a button value, convert it
+    if question in question_map:
+        question = question_map[question]
+    
     # Get conversation history for context
     history = db_service.get_conversation_history(db, session_id)
     gemini_history = [
         {"role": msg.role, "parts": [msg.message]}
-        for msg in history[-5:]  # Last 5 messages
+        for msg in history[-5:]
     ]
     
     # Get AI response
@@ -512,3 +618,58 @@ async def ask_ai(request: dict, db: Session = Depends(get_db)):
             }
         }
     }
+    
+@router.post("/chat/property-action")
+async def property_action(request: dict, db: Session = Depends(get_db)):
+    """Handle property card actions (brochure/quote)"""
+    session_id = request.get("session_id")
+    action = request.get("action")  # 'brochure' or 'quote'
+    property_id = request.get("property_id")
+    
+    # Get property details
+    property_data = property_service.get_property_by_id(property_id)
+    
+    if not property_data:
+        return {"message": "Property not found", "current_state": "explore_start"}
+    
+    # Check if lead exists
+    lead = db_service.get_lead_by_session(db, session_id)
+    
+    if lead and (lead.email or lead.phone):
+        # Lead already exists - send confirmation
+        message = f"✅ Perfect! We'll send you detailed information about {property_data['name']} shortly.\n\nWhat else can I help you with?"
+        
+        # Send notification email here if needed
+        
+        return {
+            "message": message,
+            "current_state": "explore_property_action",
+            "ui_component": {
+                "type": "buttons",
+                "data": {
+                    "options": [
+                        {"value": "another", "label": "🏡 See More Properties"},
+                        {"value": "menu", "label": "🏠 Back to Menu"}
+                    ]
+                }
+            },
+            "show_menu_button": False
+        }
+    else:
+        # Need to capture lead first
+        return {
+            "message": f"I'd love to share details about {property_data['name']}!\n\nPlease provide your contact information:",
+            "current_state": "lead_capture",
+            "ui_component": {
+                "type": "lead_form",
+                "data": {
+                    "fields": [
+                        {"name": "name", "label": "Name", "type": "text", "required": True},
+                        {"name": "email", "label": "Email", "type": "email", "required": True},
+                        {"name": "phone", "label": "Phone", "type": "tel", "required": True}
+                    ]
+                }
+            },
+            "show_menu_button": True,
+            "metadata": {"property_id": property_id, "action": action}
+        }
